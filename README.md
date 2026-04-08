@@ -29,6 +29,21 @@ of context around each change group:
  five
 ```
 
+# Using this with Test.Expect
+
+If you're comparing two multi-line strings in a unit test, UnifiedDiff is a
+great way to see the difference between two strings that are not equal.
+The test will look like this:
+
+```gren
+import Expect
+import UnifiedDiff exposing (unifiedDiff)
+
+    test testDescription <| \_ ->
+        (Expect.equal expectedString resultString
+                |> Expect.onFail (unifiedDiff expectedString resultString) )
+```
+
 # Credits
 
 The code was originally written by Claude AI.
