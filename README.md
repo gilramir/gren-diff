@@ -29,7 +29,7 @@ of context around each change group:
  five
 ```
 
-# Using this with Test.Expect
+# Using this with gren-lang/test's Expect
 
 If you're comparing two multi-line strings in a unit test, UnifiedDiff is a
 great way to see the difference between two strings that are not equal.
