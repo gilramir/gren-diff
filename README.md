@@ -39,7 +39,7 @@ The test will look like this:
 import Expect
 import UnifiedDiff exposing (unifiedDiff)
 
-    test testDescription <| \_ ->
+    test "This is a test" <| \_ ->
         (Expect.equal expectedString resultString
                 |> Expect.onFail (unifiedDiff expectedString resultString) )
 ```
