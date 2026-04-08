@@ -1,0 +1,440 @@
+module UnifiedDiff exposing (unifiedDiff)
+
+import Array exposing (Array)
+import String
+
+
+{-| Compute a unified diff between two strings.
+    Each string is split on newlines and compared line by line.
+    Returns the diff as a String, or an empty String if the inputs are identical.
+
+    The output follows the standard unified diff format:
+
+        @@ -1,4 +1,4 @@
+         context line
+        -removed line
+        +added line
+         context line
+-}
+unifiedDiff : String -> String -> String
+unifiedDiff oldText newText =
+    let
+        oldLines =
+            String.split "\n" oldText
+
+        newLines =
+            String.split "\n" newText
+    in
+    if oldLines == newLines then
+        ""
+    else
+        let
+            edits =
+                computeEdits oldLines newLines
+
+            annotated =
+                annotateEdits edits
+
+            hunks =
+                extractHunks annotated
+        in
+        if Array.isEmpty hunks then
+            ""
+        else
+            Array.map renderHunk hunks
+                |> String.join "\n"
+
+
+
+-- TYPES
+
+
+type Edit
+    = Keep String
+    | Remove String
+    | Add String
+
+
+type EditKind
+    = KeepLine
+    | RemoveLine
+    | AddLine
+
+
+type alias LineEdit =
+    { kind : EditKind
+    , content : String
+    , oldLine : Int   -- 1-based line number in the old file; 0 for Add lines
+    , newLine : Int   -- 1-based line number in the new file; 0 for Remove lines
+    }
+
+
+type alias Hunk =
+    { oldStart : Int
+    , oldCount : Int
+    , newStart : Int
+    , newCount : Int
+    , lines : Array LineEdit
+    }
+
+
+{-| Number of unchanged context lines to show before and after each change group. -}
+contextSize : Int
+contextSize =
+    3
+
+
+
+-- STEP 1: BUILD THE LCS DYNAMIC-PROGRAMMING TABLE
+--
+-- Stored as a flat, row-major Array of size (m+1)*(n+1).
+-- table[i][j] = length of the longest common subsequence of
+--               xs[0..i-1] and ys[0..j-1].
+
+
+buildLcsTable : Array String -> Array String -> Array Int
+buildLcsTable xs ys =
+    let
+        m =
+            Array.length xs
+
+        n =
+            Array.length ys
+
+        cols =
+            n + 1
+
+        initial =
+            Array.repeat ((m + 1) * cols) 0
+
+        getAt i j tbl =
+            Array.get (i * cols + j) tbl
+                |> Maybe.withDefault 0
+    in
+    Array.foldl
+        (\i tbl0 ->
+            Array.foldl
+                (\j tbl1 ->
+                    let
+                        xi =
+                            Array.get (i - 1) xs |> Maybe.withDefault ""
+
+                        yj =
+                            Array.get (j - 1) ys |> Maybe.withDefault ""
+
+                        val =
+                            if xi == yj then
+                                getAt (i - 1) (j - 1) tbl1 + 1
+
+                            else
+                                max
+                                    (getAt (i - 1) j tbl1)
+                                    (getAt i (j - 1) tbl1)
+                    in
+                    Array.set (i * cols + j) val tbl1
+                )
+                tbl0
+                (Array.range 1 n)
+        )
+        initial
+        (Array.range 1 m)
+
+
+
+-- STEP 2: BACKTRACK THE LCS TABLE TO PRODUCE AN EDIT SEQUENCE
+--
+-- Starting from (m, n) and working back to (0, 0):
+--   - Diagonal move  → the lines match  → Keep
+--   - Move up        → old line removed → Remove
+--   - Move left      → new line added   → Add
+--
+-- Because we evaluate the recursive call before pushing the current
+-- edit onto it, the resulting Array is already in forward order.
+
+
+computeEdits : Array String -> Array String -> Array Edit
+computeEdits xs ys =
+    let
+        m =
+            Array.length xs
+
+        n =
+            Array.length ys
+
+        table =
+            buildLcsTable xs ys
+
+        cols =
+            n + 1
+
+        getAt i j =
+            Array.get (i * cols + j) table
+                |> Maybe.withDefault 0
+
+        -- Walk backward from (m, n) to (0, 0), accumulating edits in reverse
+        -- order. Every branch is a tail call, so there is no stack growth.
+        go i j revAcc =
+            if i == 0 && j == 0 then
+                revAcc
+
+            else if i == 0 then
+                -- All remaining new lines are insertions
+                go 0 (j - 1)
+                    (Array.pushLast
+                        (Add (Array.get (j - 1) ys |> Maybe.withDefault ""))
+                        revAcc
+                    )
+
+            else if j == 0 then
+                -- All remaining old lines are deletions
+                go (i - 1) 0
+                    (Array.pushLast
+                        (Remove (Array.get (i - 1) xs |> Maybe.withDefault ""))
+                        revAcc
+                    )
+
+            else
+                let
+                    xi =
+                        Array.get (i - 1) xs |> Maybe.withDefault ""
+
+                    yj =
+                        Array.get (j - 1) ys |> Maybe.withDefault ""
+                in
+                if xi == yj then
+                    go (i - 1) (j - 1) (Array.pushLast (Keep xi) revAcc)
+
+                else if getAt (i - 1) j > getAt i (j - 1) then
+                    go (i - 1) j (Array.pushLast (Remove xi) revAcc)
+
+                else
+                    go i (j - 1) (Array.pushLast (Add yj) revAcc)
+    in
+    -- go produces edits in reverse (last edit first), so fold right-to-left
+    -- and pushLast each element to restore forward order.
+    Array.foldr (\x acc -> Array.pushLast x acc) [] (go m n [])
+
+
+
+-- STEP 3: ANNOTATE EACH EDIT WITH 1-BASED LINE NUMBERS
+
+
+annotateEdits : Array Edit -> Array LineEdit
+annotateEdits edits =
+    let
+        step edit acc =
+            when edit is
+                Keep s ->
+                    { acc
+                        | result =
+                            Array.pushLast
+                                { kind = KeepLine
+                                , content = s
+                                , oldLine = acc.oldN
+                                , newLine = acc.newN
+                                }
+                                acc.result
+                        , oldN = acc.oldN + 1
+                        , newN = acc.newN + 1
+                    }
+
+                Remove s ->
+                    { acc
+                        | result =
+                            Array.pushLast
+                                { kind = RemoveLine
+                                , content = s
+                                , oldLine = acc.oldN
+                                , newLine = 0
+                                }
+                                acc.result
+                        , oldN = acc.oldN + 1
+                    }
+
+                Add s ->
+                    { acc
+                        | result =
+                            Array.pushLast
+                                { kind = AddLine
+                                , content = s
+                                , oldLine = 0
+                                , newLine = acc.newN
+                                }
+                                acc.result
+                        , newN = acc.newN + 1
+                    }
+
+        initial =
+            { result = [], oldN = 1, newN = 1 }
+    in
+    (Array.foldl step initial edits).result
+
+
+
+-- STEP 4: SLICE THE ANNOTATED EDIT LIST INTO HUNKS
+--
+-- Each changed line becomes the center of a context window.
+-- Change groups whose windows overlap are merged into a single hunk.
+
+
+isChange : LineEdit -> Bool
+isChange le =
+    when le.kind is
+        KeepLine ->
+            False
+
+        _ ->
+            True
+
+
+extractHunks : Array LineEdit -> Array Hunk
+extractHunks annotated =
+    let
+        n =
+            Array.length annotated
+
+        -- Indices (0-based) of every Add or Remove in the edit list
+        changeIndices =
+            Array.range 0 (n - 1)
+                |> Array.keepIf
+                    (\i ->
+                        Array.get i annotated
+                            |> Maybe.map isChange
+                            |> Maybe.withDefault False
+                    )
+    in
+    if Array.isEmpty changeIndices then
+        []
+
+    else
+        groupRanges changeIndices
+            |> Array.map
+                (\{ start, end } ->
+                    let
+                        from =
+                            max 0 (start - contextSize)
+
+                        to_ =
+                            min (n - 1) (end + contextSize)
+
+                        hunkLines =
+                            Array.slice from (to_ + 1) annotated
+                    in
+                    makeHunk hunkLines
+                )
+
+
+{-| Merge a sorted array of change indices into contiguous {start, end} ranges.
+    Two indices are merged when their context windows would overlap or touch,
+    i.e. when the gap between them is at most 2 * contextSize keep-lines.
+-}
+groupRanges : Array Int -> Array { start : Int, end : Int }
+groupRanges indices =
+    when Array.first indices is
+        Nothing ->
+            []
+
+        Just first ->
+            let
+                rest =
+                    Array.slice 1 (Array.length indices) indices
+
+                initial =
+                    { groups = []
+                    , currentStart = first
+                    , currentEnd = first
+                    }
+
+                { groups, currentStart, currentEnd } =
+                    Array.foldl
+                        (\i acc ->
+                            if i <= acc.currentEnd + 2 * contextSize then
+                                -- Close enough: extend the current range
+                                { acc | currentEnd = i }
+
+                            else
+                                -- Too far away: seal the current range, start a new one
+                                { groups =
+                                    Array.pushLast
+                                        { start = acc.currentStart, end = acc.currentEnd }
+                                        acc.groups
+                                , currentStart = i
+                                , currentEnd = i
+                                }
+                        )
+                        initial
+                        rest
+            in
+            -- Seal the final range
+            Array.pushLast { start = currentStart, end = currentEnd } groups
+
+
+makeHunk : Array LineEdit -> Hunk
+makeHunk lines =
+    let
+        -- Lines that appear in the old file (Keep + Remove)
+        oldFileLines =
+            Array.keepIf (\le -> le.kind /= AddLine) lines
+
+        -- Lines that appear in the new file (Keep + Add)
+        newFileLines =
+            Array.keepIf (\le -> le.kind /= RemoveLine) lines
+
+        oldStart =
+            Array.first oldFileLines
+                |> Maybe.map .oldLine
+                |> Maybe.withDefault 1
+
+        newStart =
+            Array.first newFileLines
+                |> Maybe.map .newLine
+                |> Maybe.withDefault 1
+    in
+    { oldStart = oldStart
+    , oldCount = Array.length oldFileLines
+    , newStart = newStart
+    , newCount = Array.length newFileLines
+    , lines = lines
+    }
+
+
+
+-- STEP 5: RENDER EACH HUNK AS A STRING
+--
+-- Format:
+--   @@ -<oldStart>,<oldCount> +<newStart>,<newCount> @@
+--    <context line>
+--   -<removed line>
+--   +<added line>
+
+
+renderHunk : Hunk -> String
+renderHunk hunk =
+    let
+        header =
+            "@@ -"
+                ++ String.fromInt hunk.oldStart
+                ++ ","
+                ++ String.fromInt hunk.oldCount
+                ++ " +"
+                ++ String.fromInt hunk.newStart
+                ++ ","
+                ++ String.fromInt hunk.newCount
+                ++ " @@"
+
+        renderLine le =
+            when le.kind is
+                KeepLine ->
+                    " " ++ le.content
+
+                RemoveLine ->
+                    "-" ++ le.content
+
+                AddLine ->
+                    "+" ++ le.content
+
+        body =
+            Array.map renderLine hunk.lines
+                |> String.join "\n"
+    in
+    header ++ "\n" ++ body
