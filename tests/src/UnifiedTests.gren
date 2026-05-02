@@ -3,7 +3,7 @@ module UnifiedTests exposing (tests)
 import Expect exposing (Expectation)
 import Test exposing (Test, describe, test)
 
-import UnifiedDiff exposing (unifiedDiff, unifiedDiffArrays)
+import UnifiedDiff exposing (unifiedDiffStrings, unifiedDiffArrays)
 
 
 text1 = """
@@ -63,15 +63,15 @@ tests : Test
 tests =
     describe "UnifiedDiff"
         [ test "empty vs empty" <| \{} ->
-            unifiedDiff "" ""
+            unifiedDiffStrings "" ""
                 |> Expect.equal ""
 
         , test "same vs same" <| \{} ->
-            unifiedDiff text1 text1
+            unifiedDiffStrings text1 text1
                 |> Expect.equal ""
 
         , test "change line 1" <| \{} ->
-            unifiedDiff text1 changeLine1
+            unifiedDiffStrings text1 changeLine1
                 |> Expect.equal """
 @@ -1,4 +1,4 @@
 -This is line 1.
@@ -82,7 +82,7 @@ tests =
 """
 
         , test "change line 3" <| \{} ->
-            unifiedDiff text1 changeLine3
+            unifiedDiffStrings text1 changeLine3
                 |> Expect.equal """
 @@ -1,5 +1,5 @@
  This is line 1.
@@ -94,7 +94,7 @@ tests =
 """
 
         , test "change line 5" <| \{} ->
-            unifiedDiff text1 changeLine5
+            unifiedDiffStrings text1 changeLine5
                 |> Expect.equal """
 @@ -2,4 +2,4 @@
  This is line 2.
@@ -105,7 +105,7 @@ tests =
 """
 
         , test "remove line 1" <| \{} ->
-            unifiedDiff text1 removeLine1
+            unifiedDiffStrings text1 removeLine1
                 |> Expect.equal """
 @@ -1,4 +1,3 @@
 -This is line 1.
@@ -115,7 +115,7 @@ tests =
 """
 
         , test "remove line 3" <| \{} ->
-            unifiedDiff text1 removeLine3
+            unifiedDiffStrings text1 removeLine3
                 |> Expect.equal """
 @@ -1,5 +1,4 @@
  This is line 1.
@@ -126,7 +126,7 @@ tests =
 """
 
         , test "remove line 5" <| \{} ->
-            unifiedDiff text1 removeLine5
+            unifiedDiffStrings text1 removeLine5
                 |> Expect.equal """
 @@ -2,4 +2,3 @@
  This is line 2.

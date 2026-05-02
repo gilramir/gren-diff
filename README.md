@@ -1,22 +1,41 @@
 # gren-diff
 
-This package provides code to produce a diff between two strings. Currently the
+This package provides code to produce a diff between two sets of strings, where
+each string is a line of text. Currently the
 only supported output format is a "unified diff".
 
 
 # UnifiedDiff
 
-A single function, `unifiedDiff`, that compares two strings line by line and returns a standard
+## unifiedDiffStrings
+
+This function accepts two strings which are treated as "documents" with
+newlines in them. It splits the strings on the newlines, and diffs the resulting arrays of strings.
+It compares them line by line and returns a standard
 [unified diff](https://www.gnu.org/software/diffutils/manual/html_node/Unified-Format.html).
 If the inputs are identical, an empty string is returned.
 
 ```gren
-UnifiedDiff.unifiedDiff original modified
+UnifiedDiff.unifiedDiffStrings original modified
+```
+
+## unifiedDiffArrays
+
+This function accepts to arrays of strings, where each string is a line of
+text.
+
+It compares them line by line and returns a standard
+[unified diff](https://www.gnu.org/software/diffutils/manual/html_node/Unified-Format.html).
+If the inputs are identical, an empty string is returned.
+
+```gren
+UnifiedDiff.unifiedDiffArrays originalLines modifiedLines
 ```
 
 ## Output format
 
-The output follows the conventional unified diff format with three lines
+The output of both unifiedDiffStrings and unifiedDiffArrays
+follows the conventional unified diff format with three lines
 of context around each change group:
 
 ```
@@ -37,13 +56,13 @@ The test will look like this:
 
 ```gren
 import Expect
-import UnifiedDiff exposing (unifiedDiff)
+import UnifiedDiff exposing (unifiedDiffStrings)
 
     test "This is a test" <| \_ ->
         (Expect.equal expectedString resultString
-                |> Expect.onFail (unifiedDiff expectedString resultString) )
+                |> Expect.onFail (unifiedDiffStrings expectedString resultString) )
 ```
 
 # Credits
 
-The code was originally written by Claude AI.
+The code was co-authored by Claude AI.

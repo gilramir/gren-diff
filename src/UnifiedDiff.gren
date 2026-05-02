@@ -1,8 +1,6 @@
-module UnifiedDiff exposing (unifiedDiff, unifiedDiffArrays)
+module UnifiedDiff exposing (unifiedDiffStrings, unifiedDiffArrays)
 
 {-|
-# UnifiedDiff
-
 Produce a unified diff of two strings.
 
 ## Algorithm
@@ -28,7 +26,7 @@ configuration files encountered in practice this is not an issue.
 
 # Functions
 
-@docs unifiedDiff, unifiedDiffArrays
+@docs unifiedDiffStrings, unifiedDiffArrays
 
 -}
 
@@ -48,8 +46,8 @@ import String
         +added line
          context line
 -}
-unifiedDiff : String -> String -> String
-unifiedDiff oldText newText =
+unifiedDiffStrings : String -> String -> String
+unifiedDiffStrings oldText newText =
     let
         oldLines =
             String.split "\n" oldText
