@@ -1,4 +1,4 @@
-module UnifiedDiff exposing (unifiedDiff)
+module UnifiedDiff exposing (unifiedDiff, unifiedDiffArrays)
 
 {-|
 # UnifiedDiff
@@ -28,7 +28,7 @@ configuration files encountered in practice this is not an issue.
 
 # Functions
 
-@docs unifiedDiff
+@docs unifiedDiff, unifiedDiffArrays
 
 -}
 
@@ -57,6 +57,23 @@ unifiedDiff oldText newText =
         newLines =
             String.split "\n" newText
     in
+    unifiedDiffArrays oldLines newLines
+
+
+{-| Compute a unified diff between two Arrays of Strings, where
+    each string is a single line of text.
+    Returns the diff as a String, or an empty String if the inputs are identical.
+
+    The output follows the standard unified diff format:
+
+        @@ -1,4 +1,4 @@
+         context line
+        -removed line
+        +added line
+         context line
+-}
+unifiedDiffArrays : Array String -> Array String -> String
+unifiedDiffArrays oldLines newLines =
     if oldLines == newLines then
         ""
     else
@@ -75,7 +92,6 @@ unifiedDiff oldText newText =
         else
             Array.map renderHunk hunks
                 |> String.join "\n"
-
 
 
 -- TYPES
