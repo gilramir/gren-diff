@@ -4,7 +4,7 @@
     "name": "gilramir/gren-diff",
     "summary": "Produce diffs between two strings",
     "license": "ISC",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "UnifiedDiff"
     ],
