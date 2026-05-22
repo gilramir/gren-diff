@@ -31,6 +31,7 @@ configuration files encountered in practice this is not an issue.
 -}
 
 import Array exposing (Array)
+import Array.Builder as Builder
 import String
 
 
@@ -133,12 +134,21 @@ contextSize =
 
 -- STEP 1: BUILD THE LCS DYNAMIC-PROGRAMMING TABLE
 --
--- Stored as a flat, row-major Array of size (m+1)*(n+1).
+-- Stored as a row-major `Array (Array Int)` of size (m+1) × (n+1).
 -- table[i][j] = length of the longest common subsequence of
 --               xs[0..i-1] and ys[0..j-1].
+--
+-- Why rows-of-rows instead of a single flat Array? Gren's `Array.set`
+-- is backed by JavaScript's `Array.prototype.with`, which copies the
+-- whole array on every call — turning a single `set` into an O(N)
+-- operation where N is the array length. Calling it once per cell of
+-- an m × n table costs O((m·n)²) — a 300-line diff blows up to
+-- multi-minute wall times. Building each row with an `Array.Builder`
+-- (mutable internally, O(1) per push) and stacking the rows with an
+-- outer Builder gets us back to the textbook O(m·n) table build.
 
 
-buildLcsTable : Array String -> Array String -> Array Int
+buildLcsTable : Array String -> Array String -> Array (Array Int)
 buildLcsTable xs ys =
     let
         m =
@@ -147,43 +157,68 @@ buildLcsTable xs ys =
         n =
             Array.length ys
 
-        cols =
-            n + 1
+        emptyRow =
+            Array.repeat (n + 1) 0
 
-        initial =
-            Array.repeat ((m + 1) * cols) 0
+        -- Build a single row left-to-right. We read three positions to
+        -- compute each cell: the diagonal (prevRow[j-1]), the up
+        -- (prevRow[j]), and the left (the cell we just emitted in the
+        -- current row, which we track in `lastVal` rather than
+        -- materialising the half-built row).
+        buildRow i prevRow =
+            let
+                xi =
+                    Array.get (i - 1) xs |> Maybe.withDefault ""
 
-        getAt i j tbl =
-            Array.get (i * cols + j) tbl
-                |> Maybe.withDefault 0
-    in
-    Array.foldl
-        (\i tbl0 ->
-            Array.foldl
-                (\j tbl1 ->
+                rowStep j acc =
                     let
-                        xi =
-                            Array.get (i - 1) xs |> Maybe.withDefault ""
-
                         yj =
                             Array.get (j - 1) ys |> Maybe.withDefault ""
 
+                        valDiag =
+                            Array.get (j - 1) prevRow |> Maybe.withDefault 0
+
+                        valUp =
+                            Array.get j prevRow |> Maybe.withDefault 0
+
                         val =
                             if xi == yj then
-                                getAt (i - 1) (j - 1) tbl1 + 1
+                                valDiag + 1
 
                             else
-                                max
-                                    (getAt (i - 1) j tbl1)
-                                    (getAt i (j - 1) tbl1)
+                                max valUp acc.lastVal
                     in
-                    Array.set (i * cols + j) val tbl1
+                    { builder = Builder.pushLast val acc.builder
+                    , lastVal = val
+                    }
+
+                seed =
+                    { builder = Builder.pushLast 0 (Builder.empty (n + 1))
+                    , lastVal = 0
+                    }
+
+                result =
+                    Array.foldl rowStep seed (Array.range 1 n)
+            in
+            Builder.toArray result.builder
+
+        outer =
+            Array.foldl
+                (\i acc ->
+                    let
+                        newRow =
+                            buildRow i acc.prevRow
+                    in
+                    { builder = Builder.pushLast newRow acc.builder
+                    , prevRow = newRow
+                    }
                 )
-                tbl0
-                (Array.range 1 n)
-        )
-        initial
-        (Array.range 1 m)
+                { builder = Builder.pushLast emptyRow (Builder.empty (m + 1))
+                , prevRow = emptyRow
+                }
+                (Array.range 1 m)
+    in
+    Builder.toArray outer.builder
 
 
 
@@ -210,11 +245,9 @@ computeEdits xs ys =
         table =
             buildLcsTable xs ys
 
-        cols =
-            n + 1
-
         getAt i j =
-            Array.get (i * cols + j) table
+            Array.get i table
+                |> Maybe.andThen (\row -> Array.get j row)
                 |> Maybe.withDefault 0
 
         -- Walk backward from (m, n) to (0, 0), accumulating edits in reverse

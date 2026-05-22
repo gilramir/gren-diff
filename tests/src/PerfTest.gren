@@ -1,0 +1,73 @@
+module PerfTest exposing (tests)
+
+{-| Regression test for the LCS-table builder. The original
+implementation used `Array.set` once per cell, and `Array.set` in
+Gren is backed by JavaScript's `Array.prototype.with` — which copies
+the entire array on every call. That made `buildLcsTable` O((m·n)²),
+and a 200-line × 200-line diff took ~45 s.
+
+The current implementation builds the table row-by-row with an
+`Array.Builder`, keeping the build at the textbook O(m·n). The test
+diffs two 200-line inputs with a single change in the middle. With
+the fix it runs in well under 100 ms; with the regression it would
+take 30–60 s, which the test runner / CI will visibly notice.
+
+We also assert the produced diff to lock in correctness so a future
+optimisation can't silently break the output shape.
+-}
+
+import Expect
+import Test exposing (Test, describe, test)
+
+import Array exposing (Array)
+import UnifiedDiff exposing (unifiedDiffArrays)
+
+
+-- Generate ["line 1", "line 2", ..., "line n"]
+generateLines : Int -> Array String
+generateLines n =
+    Array.range 1 n
+        |> Array.map (\i -> "line " ++ String.fromInt i)
+
+
+-- Same array but the middle line is replaced with "CHANGED".
+generateLinesWithChange : Int -> Array String
+generateLinesWithChange n =
+    let
+        midIndex =
+            n // 2
+    in
+    Array.range 1 n
+        |> Array.map
+            (\i ->
+                if i == midIndex then
+                    "CHANGED"
+
+                else
+                    "line " ++ String.fromInt i
+            )
+
+
+tests : Test
+tests =
+    describe "performance"
+        [ test "200-line diff with one mid-file change finishes quickly" <| \{} ->
+            let
+                n = 200
+                old = generateLines n
+                new = generateLinesWithChange n
+
+                expected =
+                    "@@ -97,7 +97,7 @@\n"
+                        ++ " line 97\n"
+                        ++ " line 98\n"
+                        ++ " line 99\n"
+                        ++ "-line 100\n"
+                        ++ "+CHANGED\n"
+                        ++ " line 101\n"
+                        ++ " line 102\n"
+                        ++ " line 103"
+            in
+            unifiedDiffArrays old new
+                |> Expect.equal expected
+        ]

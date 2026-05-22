@@ -3,6 +3,7 @@ module Main exposing (main)
 import Test
 import Test.Runner.Node as TestRunner
 import UnifiedTests
+import PerfTest
 
 
 main : TestRunner.Program
@@ -10,4 +11,5 @@ main =
     TestRunner.run <|
         Test.describe "gren-diff tests"
             [ UnifiedTests.tests
+            , PerfTest.tests
             ]
