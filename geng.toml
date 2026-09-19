@@ -1,0 +1,12 @@
+[package]
+name = "github.com/gilramir/gren-diff"
+version = "1.0.2"
+summary = "Produce diffs between two strings"
+license = "ISC"
+geng = "0.6.0 <= v < 0.7.0"
+
+[platform]
+runtime = "any"
+
+[modules]
+exposed = ["UnifiedDiff"]

@@ -1,12 +1,13 @@
 module Main exposing (main)
 
+import Task exposing (Task)
 import Test
 import Test.Runner.Node as TestRunner
 import UnifiedTests
 import PerfTest
 
 
-main : TestRunner.Program
+main : Task Never {}
 main =
     TestRunner.run <|
         Test.describe "gren-diff tests"
