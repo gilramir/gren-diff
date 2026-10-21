@@ -8,14 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Run tests from the `tests/` directory:
+Everything runs inside devbox, which provides Gren 0.6 and Node 22:
 
 ```sh
-cd tests
-./run-tests.sh
+devbox run build    # compile the package
+devbox run docs     # check the doc comments parse
+devbox run test     # tests/run-tests.sh
 ```
 
-This compiles the test application with `gren make Main --output=app` and runs it with `node app`.
+`devbox run test` runs `tests/run-tests.sh`, which compiles the test application with `gren make Main --output=app` and runs it with `node app`.
 
 ## Architecture
 

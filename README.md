@@ -66,3 +66,11 @@ import UnifiedDiff exposing (unifiedDiffStrings)
 # Credits
 
 The code was co-authored by Claude AI.
+
+# Running the tests
+
+The toolchain (Gren and Node) comes from [devbox](https://www.jetify.com/devbox):
+
+```sh
+devbox run test
+```
