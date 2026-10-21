@@ -459,15 +459,18 @@ makeHunk lines =
         newFileLines =
             Array.keepIf (\le -> le.kind /= RemoveLine) lines
 
+        -- A side with no lines in the hunk is a file with no lines, since
+        -- any line it had would be context here, and GNU diff writes its
+        -- range as 0,0 (geng-lang m4-refine.md §RF7.4).
         oldStart =
             Array.first oldFileLines
                 |> Maybe.map .oldLine
-                |> Maybe.withDefault 1
+                |> Maybe.withDefault 0
 
         newStart =
             Array.first newFileLines
                 |> Maybe.map .newLine
-                |> Maybe.withDefault 1
+                |> Maybe.withDefault 0
     in
     { oldStart = oldStart
     , oldCount = Array.length oldFileLines
