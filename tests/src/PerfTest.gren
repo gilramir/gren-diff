@@ -17,7 +17,8 @@ optimisation can't silently break the output shape.
 -}
 
 import Expect
-import Test exposing (Test, describe, test)
+import Task
+import Test.Runner.UnitNode as U
 
 import Array exposing (Array)
 import UnifiedDiff exposing (unifiedDiffArrays)
@@ -48,26 +49,34 @@ generateLinesWithChange n =
             )
 
 
-tests : Test
+tests : U.Suite
 tests =
-    describe "performance"
-        [ test "200-line diff with one mid-file change finishes quickly" <| \{} ->
-            let
-                n = 200
-                old = generateLines n
-                new = generateLinesWithChange n
+    U.suite
+        { name = "performance"
+        , setUpSuite = U.noSuiteFixture
+        , tearDownSuite = U.noTearDown
+        , setUp = U.noFixture
+        , tearDown = U.noTearDown
+        , tests =
+            [ U.test "200-line diff with one mid-file change finishes quickly" <| \_ ->
+                let
+                    n = 200
+                    old = generateLines n
+                    new = generateLinesWithChange n
 
-                expected =
-                    "@@ -97,7 +97,7 @@\n"
-                        ++ " line 97\n"
-                        ++ " line 98\n"
-                        ++ " line 99\n"
-                        ++ "-line 100\n"
-                        ++ "+CHANGED\n"
-                        ++ " line 101\n"
-                        ++ " line 102\n"
-                        ++ " line 103"
-            in
-            unifiedDiffArrays old new
-                |> Expect.equal expected
-        ]
+                    expected =
+                        "@@ -97,7 +97,7 @@\n"
+                            ++ " line 97\n"
+                            ++ " line 98\n"
+                            ++ " line 99\n"
+                            ++ "-line 100\n"
+                            ++ "+CHANGED\n"
+                            ++ " line 101\n"
+                            ++ " line 102\n"
+                            ++ " line 103"
+                in
+                unifiedDiffArrays old new
+                    |> Expect.equal expected
+                    |> Task.succeed
+            ]
+        }

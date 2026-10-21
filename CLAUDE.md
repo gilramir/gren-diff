@@ -28,4 +28,4 @@ All library code lives in `src/UnifiedDiff.gren`. The algorithm proceeds in five
 4. **`extractHunks`** — groups nearby changes into `Hunk` values, each padded with `contextSize` (3) context lines. Overlapping windows are merged by `groupRanges`.
 5. **`renderHunk`** — formats each hunk as the standard `@@ -a,b +c,d @@\n...` string.
 
-The test suite is a separate Gren application in `tests/` that depends on this package via `"local:../"`. Tests are in `tests/src/UnifiedTests.gren` and the entry point is `tests/src/Main.gren`.
+The test suite is a separate Gren application in `tests/` that depends on this package via `"local:../"`. It uses the [gilramir/gren-unit-node](https://github.com/gilramir/gren-unit-node) runner: each module exposes a `U.Suite` (`tests/src/UnifiedTests.gren`, `tests/src/PerfTest.gren`) and `tests/src/Main.gren` lists them in `U.run`. Arguments to `tests/run-tests.sh` go to the runner (`--help` lists them).

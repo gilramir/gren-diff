@@ -1,7 +1,8 @@
 module UnifiedTests exposing (tests)
 
 import Expect exposing (Expectation)
-import Test exposing (Test, describe, test)
+import Task
+import Test.Runner.UnitNode as U
 
 import UnifiedDiff exposing (unifiedDiffStrings, unifiedDiffArrays)
 
@@ -66,97 +67,115 @@ removeLine5 =
     This is line 4.
     """
 
-tests : Test
+tests : U.Suite
 tests =
-    describe "UnifiedDiff"
-        [ test "empty vs empty" <| \{} ->
-            unifiedDiffStrings "" ""
-                |> Expect.equal ""
+    U.suite
+        { name = "UnifiedDiff"
+        , setUpSuite = U.noSuiteFixture
+        , tearDownSuite = U.noTearDown
+        , setUp = U.noFixture
+        , tearDown = U.noTearDown
+        , tests =
+            [ U.test "empty vs empty" <| \_ ->
+                unifiedDiffStrings "" ""
+                    |> Expect.equal ""
+                    |> Task.succeed
 
-        , test "same vs same" <| \{} ->
-            unifiedDiffStrings text1 text1
-                |> Expect.equal ""
+            , U.test "same vs same" <| \_ ->
+                unifiedDiffStrings text1 text1
+                    |> Expect.equal ""
+                    |> Task.succeed
 
-        , test "change line 1" <| \{} ->
-            unifiedDiffStrings text1 changeLine1
-                |> Expect.equal
-                    """
-                    @@ -1,4 +1,4 @@
-                    -This is line 1.
-                    +Changed
-                     This is line 2.
-                     This is line 3.
-                     This is line 4.
-                    """
+            , U.test "change line 1" <| \_ ->
+                unifiedDiffStrings text1 changeLine1
+                    |> Expect.equal
+                        """
+                        @@ -1,4 +1,4 @@
+                        -This is line 1.
+                        +Changed
+                         This is line 2.
+                         This is line 3.
+                         This is line 4.
+                        """
+                    |> Task.succeed
 
-        , test "change line 3" <| \{} ->
-            unifiedDiffStrings text1 changeLine3
-                |> Expect.equal
-                    """
-                    @@ -1,5 +1,5 @@
-                     This is line 1.
-                     This is line 2.
-                    -This is line 3.
-                    +Changed
-                     This is line 4.
-                     This is line 5.
-                    """
+            , U.test "change line 3" <| \_ ->
+                unifiedDiffStrings text1 changeLine3
+                    |> Expect.equal
+                        """
+                        @@ -1,5 +1,5 @@
+                         This is line 1.
+                         This is line 2.
+                        -This is line 3.
+                        +Changed
+                         This is line 4.
+                         This is line 5.
+                        """
+                    |> Task.succeed
 
-        , test "change line 5" <| \{} ->
-            unifiedDiffStrings text1 changeLine5
-                |> Expect.equal
-                    """
-                    @@ -2,4 +2,4 @@
-                     This is line 2.
-                     This is line 3.
-                     This is line 4.
-                    -This is line 5.
-                    +Changed
-                    """
+            , U.test "change line 5" <| \_ ->
+                unifiedDiffStrings text1 changeLine5
+                    |> Expect.equal
+                        """
+                        @@ -2,4 +2,4 @@
+                         This is line 2.
+                         This is line 3.
+                         This is line 4.
+                        -This is line 5.
+                        +Changed
+                        """
+                    |> Task.succeed
 
-        , test "remove line 1" <| \{} ->
-            unifiedDiffStrings text1 removeLine1
-                |> Expect.equal
-                    """
-                    @@ -1,4 +1,3 @@
-                    -This is line 1.
-                     This is line 2.
-                     This is line 3.
-                     This is line 4.
-                    """
+            , U.test "remove line 1" <| \_ ->
+                unifiedDiffStrings text1 removeLine1
+                    |> Expect.equal
+                        """
+                        @@ -1,4 +1,3 @@
+                        -This is line 1.
+                         This is line 2.
+                         This is line 3.
+                         This is line 4.
+                        """
+                    |> Task.succeed
 
-        , test "remove line 3" <| \{} ->
-            unifiedDiffStrings text1 removeLine3
-                |> Expect.equal
-                    """
-                    @@ -1,5 +1,4 @@
-                     This is line 1.
-                     This is line 2.
-                    -This is line 3.
-                     This is line 4.
-                     This is line 5.
-                    """
+            , U.test "remove line 3" <| \_ ->
+                unifiedDiffStrings text1 removeLine3
+                    |> Expect.equal
+                        """
+                        @@ -1,5 +1,4 @@
+                         This is line 1.
+                         This is line 2.
+                        -This is line 3.
+                         This is line 4.
+                         This is line 5.
+                        """
+                    |> Task.succeed
 
-        , test "remove line 5" <| \{} ->
-            unifiedDiffStrings text1 removeLine5
-                |> Expect.equal
-                    """
-                    @@ -2,4 +2,3 @@
-                     This is line 2.
-                     This is line 3.
-                     This is line 4.
-                    -This is line 5.
-                    """
+            , U.test "remove line 5" <| \_ ->
+                unifiedDiffStrings text1 removeLine5
+                    |> Expect.equal
+                        """
+                        @@ -2,4 +2,3 @@
+                         This is line 2.
+                         This is line 3.
+                         This is line 4.
+                        -This is line 5.
+                        """
+                    |> Task.succeed
 
-        , test "unifiedDiffArrays" <| \{} ->
-            unifiedDiffArrays [ "one", "two", "three" ] [ "one", "TWO", "three" ]
-                |> Expect.equal "@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three"
+            , U.test "unifiedDiffArrays" <| \_ ->
+                unifiedDiffArrays [ "one", "two", "three" ] [ "one", "TWO", "three" ]
+                    |> Expect.equal "@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three"
+                    |> Task.succeed
 
-        , test "an empty old side is 0,0, as GNU diff writes it" <| \{} ->
-            unifiedDiffArrays [] [ "a", "b" ]
-                |> Expect.equal "@@ -0,0 +1,2 @@\n+a\n+b"
+            , U.test "an empty old side is 0,0, as GNU diff writes it" <| \_ ->
+                unifiedDiffArrays [] [ "a", "b" ]
+                    |> Expect.equal "@@ -0,0 +1,2 @@\n+a\n+b"
+                    |> Task.succeed
 
-        , test "an empty new side is 0,0" <| \{} ->
-            unifiedDiffArrays [ "a", "b" ] []
-                |> Expect.equal "@@ -1,2 +0,0 @@\n-a\n-b"
-        ]
+            , U.test "an empty new side is 0,0" <| \_ ->
+                unifiedDiffArrays [ "a", "b" ] []
+                    |> Expect.equal "@@ -1,2 +0,0 @@\n-a\n-b"
+                    |> Task.succeed
+            ]
+        }

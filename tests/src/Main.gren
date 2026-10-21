@@ -1,15 +1,18 @@
 module Main exposing (main)
 
-import Test
-import Test.Runner.Node as TestRunner
-import UnifiedTests
+import Node
 import PerfTest
+import Test.Runner.UnitNode as U
+import UnifiedTests
 
 
-main : TestRunner.Program
+main : Node.SimpleProgram a
 main =
-    TestRunner.run <|
-        Test.describe "gren-diff tests"
+    U.run
+        { name = "gren-diff"
+        , version = "1.0.2"
+        , suites =
             [ UnifiedTests.tests
             , PerfTest.tests
             ]
+        }
