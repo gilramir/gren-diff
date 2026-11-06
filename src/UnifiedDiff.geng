@@ -245,7 +245,7 @@ computeEdits xs ys =
         table =
             buildLcsTable xs ys
 
-        getAt i j =
+        getProven i j =
             Array.get i table
                 |> Maybe.andThen (\row -> Array.get j row)
                 |> Maybe.withDefault 0
@@ -283,7 +283,7 @@ computeEdits xs ys =
                 if xi == yj then
                     go (i - 1) (j - 1) (Array.pushLast (Keep xi) revAcc)
 
-                else if getAt (i - 1) j > getAt i (j - 1) then
+                else if getProven (i - 1) j > getProven i (j - 1) then
                     go (i - 1) j (Array.pushLast (Remove xi) revAcc)
 
                 else
